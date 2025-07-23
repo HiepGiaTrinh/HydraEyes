@@ -114,33 +114,48 @@ def gen_frames_with_detection(camera_id):
 
     # Try to connect to camera
     address = camera_config['address']
+    cap = None
+
     try:
         if address.startswith('http'):
             cap = cv2.VideoCapture(address)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduce buffer for IP cameras
         else:
-            cap = cv2.VideoCapture(int(address))  # For device index like 0, 1
+            # Try as device index first
+            try:
+                device_id = int(address)
+                cap = cv2.VideoCapture(device_id)
+            except ValueError:
+                # If not a number, try as string path
+                cap = cv2.VideoCapture(address)
+
+        if cap is not None:
+            # Set camera properties
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+            cap.set(cv2.CAP_PROP_FPS, 30)
+
+            # Test if camera actually works
+            test_ret, test_frame = cap.read()
+            if not test_ret or test_frame is None:
+                cap.release()
+                cap = None
+
     except Exception as e:
         logger.error(f"Error opening camera {camera_id}: {e}")
-        cap = cv2.VideoCapture(0)  # Fallback to default camera
-    
-    if not cap.isOpened():
-        # If camera can't open, show error frame
-        while True:
-            error_frame = np.zeros((480, 640, 3), dtype=np.uint8)
-            cv2.putText(error_frame, f'{camera_id}: Connection Failed', (50, 200), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-            cv2.putText(error_frame, f'Cannot connect to: {address}', (50, 250), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 1)
-            ret, buffer = cv2.imencode('.jpg', error_frame)
-            frame = buffer.tobytes()
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-            time.sleep(0.1)
-        return  # Add return statement here
-    
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-    cap.set(cv2.CAP_PROP_FPS, 30)
+        if cap is not None:
+            cap.release()
+        cap = None
+
+    # Fallback to default camera if configured camera fails
+    if cap is None or not cap.isOpened():
+        logger.warning(f"Camera {camera_id} failed, trying default camera...")
+        try:
+            cap = cv2.VideoCapture(0)
+            if not cap.isOpened():
+                cap = cv2.VideoCapture(1)  # Try camera 1 if 0 fails
+        except:
+            pass
     
     frame_counter = 0
     
@@ -166,7 +181,7 @@ def gen_frames_with_detection(camera_id):
                 process_frame_for_detection(frame.copy(), camera_id)
                 # logger.info("Condition is working normal")
                 # Get overlay with detections
-                frame = gauge_detector.get_detection_overlay(frame, camera_id)
+                frame = gauge_detector.get_detection_overlay_with_crop_visual(frame, camera_id)
             
             # Add camera info overlay
             cv2.putText(frame, f'{camera_id}: {address}', (10, 30), 

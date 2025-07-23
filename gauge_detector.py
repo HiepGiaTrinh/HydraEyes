@@ -274,8 +274,8 @@ class GaugeDetector:
 
         """Draw detection results with bounding boxes"""
         if frame is None or not detections:
-            with open('debug_log.txt', 'a') as f:
-                f.write(f"[{timestamp}] No frame or detections - returning\n")
+            # with open('debug_log.txt', 'a') as f:
+            #     f.write(f"[{timestamp}] No frame or detections - returning\n")
             return frame
             
         for det in detections:
@@ -342,13 +342,19 @@ class GaugeDetector:
 
                 # Run detection
                 results = self.model.predict(cropped_frame, conf=0.15, iou=0.4, verbose=False)
+                # Debug: Save cropped frame occasionally for verification
+                if camera_id == "camera1" and hasattr(self, '_debug_counter'):
+                    self._debug_counter = getattr(self, '_debug_counter', 0) + 1
+                    if self._debug_counter % 50 == 0:  # Save every 50th frame
+                        cv2.imwrite(f'debug_crop_{camera_id}.jpg', cropped_frame)
+
                 result = self.process_detections(results, crop_coords)
 
                 if result:
                     stable_result = self.get_stable_result(result, camera_id)
                     if stable_result:
-                        with open('debug_log.txt', 'a') as f:
-                            f.write(f"Stable result\n")
+                        # with open('debug_log.txt', 'a') as f:
+                        #     f.write(f"Stable result\n")
                         number, detections = stable_result
                         
                         # Store result
@@ -360,7 +366,7 @@ class GaugeDetector:
                             'confidence': int(np.mean([det['confidence'] for det in detections]) * 100),
                             'last_update': time.time()
                         })
-                        
+
                         # Store detections for visualization
                         self.last_detections[camera_id] = {
                             'detections': detections,
@@ -406,6 +412,41 @@ class GaugeDetector:
                 f.write(f"[{timestamp}] No detection data for camera {camera_id}\n")
         return frame
 
+    def get_detection_overlay_with_crop_visual(self, frame, camera_id):
+        """Get frame with just crop rectangle and reading - no individual detection boxes"""
+        if frame is None:
+            return frame
+
+        overlay_frame = frame.copy()
+
+        # Show the detection area only
+        h, w = frame.shape[:2]
+        crop_width, crop_height = 600, 300
+        center_x, center_y = w // 2, h // 2
+        x1 = max(0, center_x - crop_width // 2)
+        y1 = max(0, center_y - crop_height // 2)
+        x2 = min(w, x1 + crop_width)
+        y2 = min(h, y1 + crop_height)
+
+        # Apply boundary adjustments
+        if x2 - x1 < crop_width:
+            x1 = max(0, x2 - crop_width)
+        if y2 - y1 < crop_height:
+            y1 = max(0, y2 - crop_height)
+
+        # Draw crop rectangle only
+        cv2.rectangle(overlay_frame, (x1, y1), (x2, y2), (255, 0, 0), 3)
+        cv2.putText(overlay_frame, "Detection Area", (x1, y1 - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+
+        # Show the final reading if available
+        if camera_id in self.last_detections:
+            det_data = self.last_detections[camera_id]
+            number = det_data['number']
+            cv2.putText(overlay_frame, f"Reading: {number}", (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
+
+        return overlay_frame
     def clear_camera_data(self, camera_id):
         """Clear data for specific camera"""
         if camera_id in self.camera_readings:
