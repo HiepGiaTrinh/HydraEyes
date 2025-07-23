@@ -1,0 +1,1820 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>H2 Factory Camera Monitoring System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: #0a0e1a;
+            color: #00ff41;
+            min-height: 100vh;
+            overflow: auto;
+        }
+
+        .header {
+            background: linear-gradient(90deg, #1a1a2e, #16213e);
+            padding: 15px 30px;
+            border-bottom: 2px solid #00ff41;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            color: #00ff41;
+            text-shadow: 0 0 10px #00ff41;
+        }
+
+        .system-time {
+            font-size: 1rem;
+            color: #00bfff;
+            margin-left: auto;
+        }
+
+        .main-container {
+            margin-top: 70px;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            min-height: calc(100vh - 70px);
+        }
+
+        .factory-overview {
+            background: #111827;
+            border: 2px solid #374151;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .overview-title {
+            color: #00bfff;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            text-align: center;
+            border-bottom: 1px solid #374151;
+            padding-bottom: 10px;
+        }
+
+        .factory-layout {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background: linear-gradient(135deg, #1f2937, #111827);
+            border: 2px solid #4b5563;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .equipment {
+            position: absolute;
+            background: #000;
+            border: 2px solid #6b7280;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            color: #d1d5db;
+        }
+
+        .tank {
+            width: 80px;
+            height: 120px;
+            background: #000;
+            border: 3px solid #059669;
+            border-radius: 15px;
+        }
+
+        .pipe {
+            background: linear-gradient(90deg, #4b5563, #6b7280, #4b5563);
+            border: 1px solid #9ca3af;
+        }
+
+        .pipe-h { height: 8px; }
+        .pipe-v { width: 8px; }
+
+        .camera-icon {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: #ef4444;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: white;
+            font-weight: bold;
+            animation: camera-blink 2s infinite;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .camera-icon:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 15px #ef4444;
+        }
+
+        .camera-icon.active {
+            background: #10b981;
+            box-shadow: 0 0 10px #10b981;
+        }
+
+        @keyframes camera-blink {
+            0%, 70% { opacity: 1; }
+            71%, 100% { opacity: 0.3; }
+        }
+
+        .camera-feeds {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+            min-height: 200px;
+        }
+
+        .camera-feed {
+            background: #1f2937;
+            border: 2px solid #4b5563;
+            border-radius: 8px;
+            padding: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .camera-feed.active {
+            border-color: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+        }
+
+        .feed-header {
+            color: #60a5fa;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .feed-status {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .status-online {
+            background: #10b981;
+            color: white;
+        }
+
+        .status-processing {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .status-warning {
+            background: #ef4444;
+            color: white;
+        }
+
+        .feed-view {
+            width: 100%;
+            height: 120px;
+            background: #000;
+            border: 1px solid #374151;
+            border-radius: 5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gauge-view {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .digital-display {
+            background: #000;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            font-size: 1.8rem;
+            text-align: center;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-shadow: 0 0 8px #00ff41;
+            letter-spacing: 2px;
+        }
+
+        .feed-info {
+            margin-top: 8px;
+            font-size: 0.7rem;
+            color: #9ca3af;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .reading-value {
+            color: #00ff41;
+            font-weight: bold;
+        }
+        
+        .OptimizeLayout {
+            grid-template-rows: 2fr 1fr;
+        }
+        
+        .control-panel {
+            background: #111827;
+            border: 2px solid #374151;
+            border-radius: 10px;
+            padding: 20px;
+            height: fit-content;
+        }
+
+        .panel-title {
+            color: #00bfff;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            text-align: center;
+            border-bottom: 1px solid #374151;
+            padding-bottom: 10px;
+        }
+
+        .system-status {
+            margin-bottom: 20px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            background: #1f2937;
+            border-radius: 5px;
+            font-size: 0.8rem;
+        }
+
+        .status-normal { color: #10b981; }
+        .status-warning { color: #f59e0b; }
+        .status-critical { color: #ef4444; }
+
+        .camera-selector {
+            margin-bottom: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .camera-btn {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 5px;
+            background: #374151;
+            color: #d1d5db;
+            border: 1px solid #4b5563;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.8rem;
+        }
+
+        .camera-btn:hover {
+            background: #4b5563;
+        }
+
+        .camera-btn.active {
+            background: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+
+        .detection-log {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 5px;
+            padding: 10px;
+        }
+
+        .log-entry {
+            font-size: 0.7rem;
+            margin-bottom: 5px;
+            padding: 3px 0;
+            border-bottom: 1px solid #374151;
+        }
+
+        .log-timestamp {
+            color: #6b7280;
+        }
+
+        .addCameraBtn:hover{
+            background: #17d898;
+        }
+        .addCameraBtn{
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: #10b981;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .monitor-panel{
+            background: #111827;
+            border: 2px solid #374151;
+            border-radius: 10px;
+            padding: 20px;
+            height: fit-content;
+            margin-top: 20px;
+        }
+
+        .video-feed{
+            border: 2px solid #2a2f3e;
+            border-radius: 2px;
+            overflow: hidden;
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        .video-feed img {
+            height: 200px;
+            width: 400px;
+            object-fit: cover;
+        }
+
+        /* Popup Overlays */
+        .popup-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .popup-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .popup-content {
+            background: #111827;
+            border: 2px solid #374151;
+            border-radius: 10px;
+            padding: 30px;
+            width: 400px;
+            max-width: 90vw;
+            max-height: 80vh;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
+        }
+
+        .popup-content.large {
+            width: 600px;
+            height: 500px;
+        }
+
+        .popup-title {
+            color: #00bfff;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            text-align: center;
+            border-bottom: 1px solid #374151;
+            padding-bottom: 10px;
+        }
+
+        .popup-input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            background: #1f2937;
+            color: #00ff41;
+            border: 2px solid #4b5563;
+            border-radius: 5px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9rem;
+        }
+
+        .popup-input:focus {
+            outline: none;
+            border-color: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+        }
+
+        .popup-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .popup-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .popup-btn.cancel {
+            background: #374151;
+            color: #d1d5db;
+        }
+
+        .popup-btn.cancel:hover {
+            background: #4b5563;
+        }
+
+        .popup-btn.submit {
+            background: #10b981;
+            color: white;
+        }
+
+        .popup-btn.submit:hover {
+            background: #17d898;
+        }
+
+        .popup-btn.delete {
+            background: #ef4444;
+            color: white;
+            padding: 5px 10px;
+            font-size: 0.7rem;
+        }
+
+        .popup-btn.delete:hover {
+            background: #dc2626;
+        }
+
+        /* Viewer Panel */
+        .viewer-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .viewer-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            background: #1f2937;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            font-size: 0.8rem;
+            color: #d1d5db;
+        }
+
+        .viewer-panel-content {
+            max-height: 120px;
+            overflow-y: auto;
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 5px;
+            padding: 10px;
+        }
+
+        .viewer-panel-item {
+            font-size: 0.8rem;
+            color: #00ff41;
+            margin-bottom: 5px;
+            padding: 3px 0;
+            border-bottom: 1px solid #374151;
+        }
+
+        /* Video feed popup */
+        .video-popup-content {
+            width: 800px;
+            height: 600px;
+            padding: 20px;
+        }
+
+        .video-popup-feed {
+            width: 100%;
+            height: 400px;
+            border: 2px solid #2a2f3e;
+            border-radius: 5px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+        }
+
+        .video-popup-feed img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-popup-info {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 0.8rem;
+        }
+
+        .empty-cameras-message {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: #6b7280;
+            font-size: 1rem;
+            padding: 40px;
+            border: 2px dashed #4b5563;
+            border-radius: 10px;
+            background: #1f2937;
+        }
+
+        .empty-cameras-message .icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .digital-display.no-reading {
+            color: #666;
+            text-shadow: none;
+        }
+
+        .digital-display.reading {
+            color: #00ff41;
+            text-shadow: 0 0 8px #00ff41;
+            background: rgba(0, 255, 65, 0.1);
+        }
+
+        .confidence-indicator {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            font-size: 0.6rem;
+            padding: 2px 4px;
+            border-radius: 3px;
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        .confidence-high { color: #10b981; }
+        .confidence-medium { color: #f59e0b; }
+        .confidence-low { color: #ef4444; }
+
+        .camera-feed.reading {
+            border-color: #f59e0b;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+        }
+
+        .camera-icon.reading {
+            background: #f59e0b;
+            box-shadow: 0 0 10px #f59e0b;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏭 H2 FACTORY CAMERA MONITORING SYSTEM</h1>
+        <div class="system-time" id="systemTime"></div>
+    </div>
+
+    <div class="main-container">
+        <div class="factory-overview">
+            <div class="overview-title">
+                🏗️ FACTORY LAYOUT - H2 PRODUCTION & STORAGE FACILITY
+            </div>
+
+            <!-- Factory Layout -->
+            <div class="factory-layout">
+                <!-- H2 Storage Tanks -->
+                <div class="tank" style="left: 50px; top: 50px;">
+                    <div style="text-align: center; margin-top: 45px; font-size: 0.7rem;">H2 TANK 1</div>
+                </div>
+                <div class="tank" style="left: 150px; top: 50px;">
+                    <div style="text-align: center; margin-top: 45px; font-size: 0.7rem;">H2 TANK 2</div>
+                </div>
+
+                <!-- Control Room -->
+                <div class="equipment" style="left: 300px; top: 50px; width: 200px; height: 100px;">
+                    CONTROL ROOM
+                </div>
+
+                <!-- Processing Unit -->
+                <div class="equipment" style="left: 550px; top: 50px; width: 150px; height: 120px;">
+                    ELECTROLYSIS<br>UNIT
+                </div>
+
+                <!-- Compressor Station -->
+                <div class="equipment" style="left: 50px; top: 220px; width: 180px; height: 80px;">
+                    COMPRESSOR STATION
+                </div>
+
+                <!-- Storage Area -->
+                <div class="equipment" style="left: 300px; top: 220px; width: 150px; height: 80px;">
+                    STORAGE<br>CONTAINERS
+                </div>
+
+                <!-- Pipe System -->
+                <div class="pipe pipe-h" style="left: 130px; top: 110px; width: 170px;"></div>
+                <div class="pipe pipe-v" style="left: 300px; top: 110px; height: 110px;"></div>
+                <div class="pipe pipe-h" style="left: 300px; top: 220px; width: 250px;"></div>
+                <div class="pipe pipe-v" style="left: 550px; top: 170px; height: 50px;"></div>
+
+                <!-- Camera icons will be dynamically added -->
+                <div id="cameraIconsContainer"></div>
+            </div>
+
+            <!-- Camera Feed Grid -->
+            <div class="camera-feeds" id="cameraFeeds">
+                <!-- Cameras will be dynamically added here -->
+                <div class="empty-cameras-message" id="emptyCamerasMessage">
+                    <span class="icon">📷</span>
+                    <div><strong>No cameras configured</strong></div>
+                    <div>Click "ADD" button to add your first camera</div>
+                </div>
+            </div>
+        </div>
+        <div class="OptimizeLayout">
+            <div class="control-panel">
+                <div class="panel-title">🔧 MONITORING CONTROL</div>
+
+                <!-- System Status -->
+                <div class="system-status">
+                    <h3 style="color: #60a5fa; font-size: 0.9rem; margin-bottom: 10px;">📊 System Status</h3>
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <span>Overall Status:</span>
+                            <span class="status-warning" id="overallStatus">STANDBY</span>
+                        </div>
+                        <div class="status-item">
+                            <span>Active Cameras:</span>
+                            <span class="status-warning" id="activeCamerasCount">0/0</span>
+                        </div>
+                        <div class="status-item">
+                            <span>H2 Detection:</span>
+                            <span class="status-normal" id="detectionStatus">NORMAL</span>
+                        </div>
+                        <div class="status-item">
+                            <span>Average Pressure:</span>
+                            <span class="status-warning" id="avgPressure">-- bar</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Camera Selector -->
+                <div class="camera-selector">
+                    <h3 style="color: #60a5fa; font-size: 0.9rem; margin-bottom: 10px;display: flex;justify-content: space-between;">
+                        <span>📷 Camera Focus</span>
+                        <button id="addCameraBtn" class="addCameraBtn" style= "width: auto;">ADD</button> 
+                    </h3>
+                    
+                    <div id="cameraButtonsContainer">
+                        <!-- Camera buttons will be dynamically added here -->
+                        <div style="text-align: center; color: #6b7280; padding: 20px;">
+                            No cameras available<br>
+                            <small>Add cameras to start monitoring</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detection Log -->
+                <div>
+                    <h3 style="color: #60a5fa; font-size: 0.9rem; margin-bottom: 10px;">📋 Detection Log</h3>
+                    <div class="detection-log" id="detectionLog">
+                        <div class="log-entry">
+                            <span class="log-timestamp">[--:--:--]</span> System initialized - Ready to add cameras
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+            <div class="monitor-panel" id="viewerPanel">
+                <div class="panel-title" style="grid-template-columns: 1fr 1fr;display: flex; justify-content: space-between;">
+                   <span>🧑‍🔧Viewer</span>
+                   <button id="viewerEdit" style="background: transparent; border: none; color: #00bfff; cursor: pointer;">&#128295;</button>
+                </div>
+                <div class="viewer-panel-content" id="viewerPanelContent">
+                    <div class="viewer-panel-item">1. Admin User</div>
+                    <div class="viewer-panel-item">2. Safety Officer</div>
+                    <div class="viewer-panel-item">3. Maintenance Team</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Popup Overlays -->
+        <!-- Add Camera Popup -->
+        <div id="addCameraPopup" class="popup-overlay">
+            <div class="popup-content">
+                <h3 class="popup-title">📷 Add New Camera</h3>
+                <input 
+                    id="cameraAddress" 
+                    type="text" 
+                    class="popup-input"
+                    placeholder="Enter camera address (e.g., http://192.168.1.100:8080 or device index 0,1)"
+                >
+                <select id="newCameraType" class="popup-input" style="margin-bottom: 20px;">
+                    <option value="digital">Digital Gauge Camera</option>
+                    <option value="analog">Analog Gauge Camera</option>
+                    <option value="video">Video Feed Camera</option>
+                </select>
+                <div class="popup-buttons">
+                    <button id="cancelAddCamera" class="popup-btn cancel">Cancel</button>
+                    <button id="addCameraSubmit" class="popup-btn submit">Add Camera</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Viewer Management Popup -->
+        <div id="viewerManagementPopup" class="popup-overlay">
+            <div class="popup-content">
+                <h3 class="popup-title">👥 Manage Viewers</h3>
+                <div class="viewer-list" id="viewerList">
+                    <!-- Viewers will be populated by JavaScript -->
+                </div>
+                <div class="popup-buttons">
+                    <button id="addViewerBtn" class="popup-btn submit">Add New Viewer</button>
+                    <button id="closeViewerManagement" class="popup-btn cancel">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Viewer Popup -->
+        <div id="addViewerPopup" class="popup-overlay">
+            <div class="popup-content">
+                <h3 class="popup-title">➕ Add New Viewer</h3>
+                <input 
+                    id="viewerFullName" 
+                    type="text" 
+                    class="popup-input"
+                    placeholder="Enter full name"
+                >
+                <input 
+                    id="viewerEmail" 
+                    type="email" 
+                    class="popup-input"
+                    placeholder="Enter email address"
+                >
+                <input 
+                    id="viewerContact" 
+                    type="tel" 
+                    class="popup-input"
+                    placeholder="Enter contact number (optional)"
+                >
+                <div class="popup-buttons">
+                    <button id="cancelAddViewer" class="popup-btn cancel">Cancel</button>
+                    <button id="addViewerSubmit" class="popup-btn submit">Add Viewer</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Video Feed Popup -->
+        <div id="videoFeedPopup" class="popup-overlay">
+            <div class="popup-content video-popup-content">
+                <h3 class="popup-title" id="videoPopupTitle">📷 Camera Feed</h3>
+                <div class="video-popup-feed" id="videoPopupFeed">
+                    <img id="videoPopupImage" src="" alt="Camera Feed">
+                </div>
+                
+                <!-- Camera Configuration Section -->
+                <div style="margin: 20px 0; padding: 15px; background: #1f2937; border-radius: 8px;">
+                    <h4 style="color: #60a5fa; margin-bottom: 10px; font-size: 0.9rem;">📝 Camera Configuration</h4>
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;">
+                        <input 
+                            id="videoPopupAddress" 
+                            type="text" 
+                            placeholder="Enter camera address or device index"
+                            style="padding: 8px; background: #111827; color: #00ff41; border: 1px solid #4b5563; border-radius: 4px; font-family: monospace; font-size: 0.8rem;"
+                        >
+                        <div>
+                            <button id="updateCameraAddress" class="popup-btn submit" style="padding: 8px 15px; font-size: 0.8rem;">Update</button>
+                            <button id="deleteCameraFromPopup" class="popup-btn delete" style="padding: 8px 15px; font-size: 0.8rem; margin-left: 5px;">Delete</button>
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <label style="color: #9ca3af; font-size: 0.8rem; display: flex; align-items: center; gap: 5px;">
+                            <select id="cameraTypeSelect" style="background: #111827; color: #00ff41; border: 1px solid #4b5563; border-radius: 4px; padding: 4px;">
+                                <option value="digital">Digital Gauge</option>
+                                <option value="analog">Analog Gauge</option>
+                                <option value="video">Video Feed</option>
+                            </select>
+                            Camera Type
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="video-popup-info" id="videoPopupInfo">
+                    <!-- Camera info will be populated by JavaScript -->
+                </div>
+                <div class="popup-buttons">
+                    <button id="closeVideoFeed" class="popup-btn cancel">Close</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        class FactoryCameraSystem {
+            constructor() {
+                this.activeCamera = null;
+                this.cameras = []; // Start with empty cameras array
+                this.viewers = [
+                    { id: 1, fullName: 'Admin User', email: 'admin@factory.com', contact: '+84901234567' },
+                    { id: 2, fullName: 'Safety Officer', email: 'safety@factory.com', contact: '+84901234568' },
+                    { id: 3, fullName: 'Maintenance Team', email: 'maintenance@factory.com', contact: '' }
+                ];
+                this.nextCameraId = 1; // Start from 1
+                this.nextViewerId = 4;
+                
+                this.sensorData = {
+                    pressure1: 48.73,
+                    pressure2: 45.12,
+                    flowRate: 2.7,
+                    h2Level: 0,
+                    avgTemp: 25.3
+                };
+                
+                this.isLeakActive = false;
+                this.thermalPixels = [];
+                this.configuredCameras = new Set();
+                
+                this.initializeSystem();
+                this.startMonitoring();
+            }
+
+            initializeSystem() {
+                // Setup camera controls
+                this.setupCameraControls();
+                
+                // Setup AddCameraBtn
+                this.setupCameraAdd();
+                
+                // Setup viewer management
+                this.setupViewerManagement();
+                
+                // Update system time
+                this.updateSystemTime();
+                setInterval(() => this.updateSystemTime(), 1000);
+                
+                // Update camera count
+                this.updateCameraCount();
+                
+                // Initialize viewer panel
+                this.updateViewerPanel();
+                
+                // Update empty state
+                this.updateEmptyState();
+
+                this.logDetection('Camera system initialized - Ready to add cameras');
+                this.logDetection('System standing by for camera configuration');
+            }
+
+            updateEmptyState() {
+                const cameraFeeds = document.getElementById('cameraFeeds');
+                const emptyCamerasMessage = document.getElementById('emptyCamerasMessage');
+                const cameraButtonsContainer = document.getElementById('cameraButtonsContainer');
+                
+                if (this.cameras.length === 0) {
+                    // Show empty message
+                    if (emptyCamerasMessage) {
+                        emptyCamerasMessage.style.display = 'block';
+                    }
+                    
+                    // Show empty buttons message
+                    cameraButtonsContainer.innerHTML = `
+                        <div style="text-align: center; color: #6b7280; padding: 20px;">
+                            No cameras available<br>
+                            <small>Add cameras to start monitoring</small>
+                        </div>
+                    `;
+                } else {
+                    // Hide empty message
+                    if (emptyCamerasMessage) {
+                        emptyCamerasMessage.style.display = 'none';
+                    }
+                }
+            }
+
+            setupCameraControls() {
+                // Camera icons in factory layout will be added dynamically
+                // No default camera controls since we start with 0 cameras
+            }
+
+            setupViewerManagement() {
+                const viewerEditBtn = document.getElementById('viewerEdit');
+                const viewerManagementPopup = document.getElementById('viewerManagementPopup');
+                const addViewerBtn = document.getElementById('addViewerBtn');
+                const addViewerPopup = document.getElementById('addViewerPopup');
+                const closeViewerManagement = document.getElementById('closeViewerManagement');
+                const cancelAddViewer = document.getElementById('cancelAddViewer');
+                const addViewerSubmit = document.getElementById('addViewerSubmit');
+
+                // Show viewer management popup
+                viewerEditBtn.addEventListener('click', () => {
+                    this.showViewerManagement();
+                });
+
+                // Show add viewer popup
+                addViewerBtn.addEventListener('click', () => {
+                    viewerManagementPopup.classList.remove('active');
+                    addViewerPopup.classList.add('active');
+                });
+
+                // Close popups
+                closeViewerManagement.addEventListener('click', () => {
+                    viewerManagementPopup.classList.remove('active');
+                });
+
+                cancelAddViewer.addEventListener('click', () => {
+                    addViewerPopup.classList.remove('active');
+                    this.clearViewerForm();
+                });
+
+                // Add viewer submit
+                addViewerSubmit.addEventListener('click', () => {
+                    this.addViewer();
+                });
+
+                // Close popups when clicking outside
+                [viewerManagementPopup, addViewerPopup].forEach(popup => {
+                    popup.addEventListener('click', (e) => {
+                        if (e.target === popup) {
+                            popup.classList.remove('active');
+                            this.clearViewerForm();
+                        }
+                    });
+                });
+
+                // Enter key to submit
+                document.getElementById('viewerFullName').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') document.getElementById('viewerEmail').focus();
+                });
+                document.getElementById('viewerEmail').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') document.getElementById('viewerContact').focus();
+                });
+                document.getElementById('viewerContact').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') addViewerSubmit.click();
+                });
+            }
+
+            showViewerManagement() {
+                const popup = document.getElementById('viewerManagementPopup');
+                const viewerList = document.getElementById('viewerList');
+                
+                // Clear existing list
+                viewerList.innerHTML = '';
+                
+                // Populate viewer list
+                this.viewers.forEach(viewer => {
+                    const viewerItem = document.createElement('div');
+                    viewerItem.className = 'viewer-item';
+                    viewerItem.innerHTML = `
+                        <div>
+                            <strong>${viewer.fullName}</strong><br>
+                            <small>${viewer.email}</small>
+                            ${viewer.contact ? `<br><small>${viewer.contact}</small>` : ''}
+                        </div>
+                        <button class="popup-btn delete" onclick="factorySystem.deleteViewer(${viewer.id})">Delete</button>
+                    `;
+                    viewerList.appendChild(viewerItem);
+                });
+                
+                popup.classList.add('active');
+            }
+
+            addViewer() {
+                const fullName = document.getElementById('viewerFullName').value.trim();
+                const email = document.getElementById('viewerEmail').value.trim();
+                const contact = document.getElementById('viewerContact').value.trim();
+
+                if (!fullName || !email) {
+                    alert('Full name and email are required!');
+                    return;
+                }
+
+                // Email validation
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    alert('Please enter a valid email address!');
+                    return;
+                }
+
+                const newViewer = {
+                    id: this.nextViewerId++,
+                    fullName: fullName,
+                    email: email,
+                    contact: contact
+                };
+
+                this.viewers.push(newViewer);
+                this.updateViewerPanel();
+                this.clearViewerForm();
+                
+                document.getElementById('addViewerPopup').classList.remove('active');
+                this.logDetection(`New viewer added: ${fullName}`);
+            }
+
+            deleteViewer(viewerId) {
+                if (confirm('Are you sure you want to delete this viewer?')) {
+                    this.viewers = this.viewers.filter(viewer => viewer.id !== viewerId);
+                    this.updateViewerPanel();
+                    this.showViewerManagement(); // Refresh the popup
+                    this.logDetection(`Viewer deleted: ID ${viewerId}`);
+                }
+            }
+
+            clearViewerForm() {
+                document.getElementById('viewerFullName').value = '';
+                document.getElementById('viewerEmail').value = '';
+                document.getElementById('viewerContact').value = '';
+            }
+
+            updateViewerPanel() {
+                const content = document.getElementById('viewerPanelContent');
+                content.innerHTML = '';
+                
+                this.viewers.forEach((viewer, index) => {
+                    const viewerItem = document.createElement('div');
+                    viewerItem.className = 'viewer-panel-item';
+                    viewerItem.textContent = `${index + 1}. ${viewer.fullName}`;
+                    content.appendChild(viewerItem);
+                });
+            }
+
+            async sendEmailNotification(message) {
+                // Simulate email sending
+                this.logDetection('📧 Sending email notifications...');
+                
+                const emailPromises = this.viewers.map(async (viewer) => {
+                    // Simulate email sending delay
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    this.logDetection(`📧 Email sent to ${viewer.email}`);
+                    
+                    // Simulate SMS if contact number exists
+                    if (viewer.contact) {
+                        await new Promise(resolve => setTimeout(resolve, 300));
+                        this.logDetection(`📱 SMS sent to ${viewer.contact}`);
+                    }
+                });
+                
+                await Promise.all(emailPromises);
+                this.logDetection('✅ All notifications sent successfully');
+            }
+
+            showVideoFeed(cameraId) {
+                const camera = this.cameras.find(cam => cam.id === cameraId);
+                if (!camera) return;
+
+                const popup = document.getElementById('videoFeedPopup');
+                const title = document.getElementById('videoPopupTitle');
+                const image = document.getElementById('videoPopupImage');
+                const info = document.getElementById('videoPopupInfo');
+                const addressInput = document.getElementById('videoPopupAddress');
+                const typeSelect = document.getElementById('cameraTypeSelect');
+
+                title.textContent = `📷 ${camera.name}`;
+                addressInput.value = camera.address || '';
+                typeSelect.value = camera.type || 'video';
+                
+                // Generate placeholder or set video source
+                if (camera.address) {
+                    if (camera.address.startsWith('http')) {
+                        image.src = camera.address;
+                    } else {
+                        // For device indices, use Flask camera feed endpoint
+                        image.src = `/camera_feed/${cameraId}`;
+                    }
+                } else {
+                    image.src = this.generatePlaceholderDataURL(camera.type);
+                }
+
+                // Update info
+                const cameraData = this.getCameraData(cameraId);
+                info.innerHTML = `
+                    <div><strong>Camera ID:</strong> ${cameraId}</div>
+                    <div><strong>Type:</strong> ${camera.type.toUpperCase()}</div>
+                    <div><strong>Status:</strong> <span style="color: ${camera.address ? '#10b981' : '#ef4444'}">${camera.address ? 'CONFIGURED' : 'NOT CONFIGURED'}</span></div>
+                    <div><strong>Address:</strong> ${camera.address || 'Not set'}</div>
+                    <div><strong>Resolution:</strong> 1920x1080</div>
+                    <div><strong>FPS:</strong> 30</div>
+                    <div><strong>Reading:</strong> <span style="color: #00ff41">${cameraData.reading}</span></div>
+                    <div><strong>Confidence:</strong> ${cameraData.confidence}%</div>
+                `;
+
+                popup.classList.add('active');
+                this.currentConfigCamera = cameraId;
+                this.setupVideoPopupHandlers();
+
+                this.logDetection(`Video feed opened: ${camera.name}`);
+            }
+
+            generatePlaceholderDataURL(type) {
+                let content = '';
+                if (type === 'digital') {
+                    content = `
+                        <text x="200" y="150" text-anchor="middle" fill="#666" font-family="monospace" font-size="48">--</text>
+                        <text x="200" y="200" text-anchor="middle" fill="#666" font-family="monospace" font-size="16">DIGITAL GAUGE</text>
+                        <text x="200" y="250" text-anchor="middle" fill="#666" font-family="monospace" font-size="14">Not Configured</text>
+                    `;
+                } else if (type === 'analog') {
+                    content = `
+                        <circle cx="200" cy="150" r="60" fill="none" stroke="#666" stroke-width="2"/>
+                        <line x1="200" y1="150" x2="240" y2="150" stroke="#666" stroke-width="2"/>
+                        <circle cx="200" cy="150" r="3" fill="#666"/>
+                        <text x="200" y="240" text-anchor="middle" fill="#666" font-family="monospace" font-size="16">ANALOG GAUGE</text>
+                        <text x="200" y="260" text-anchor="middle" fill="#666" font-family="monospace" font-size="14">Not Configured</text>
+                    `;
+                } else {
+                    content = `
+                        <rect x="50" y="50" width="300" height="200" fill="none" stroke="#666" stroke-width="2"/>
+                        <text x="200" y="140" text-anchor="middle" fill="#666" font-family="monospace" font-size="16">VIDEO FEED</text>
+                        <text x="200" y="170" text-anchor="middle" fill="#666" font-family="monospace" font-size="14">Not Configured</text>
+                    `;
+                }
+                
+                const svg = `<svg width="400" height="300" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="400" height="300" fill="#000"/>
+                    ${content}
+                </svg>`;
+                
+                return 'data:image/svg+xml;base64,' + btoa(svg);
+            }
+
+            setupVideoPopupHandlers() {
+                const popup = document.getElementById('videoFeedPopup');
+                const updateBtn = document.getElementById('updateCameraAddress');
+                const deleteBtn = document.getElementById('deleteCameraFromPopup');
+                const closeBtn = document.getElementById('closeVideoFeed');
+                const addressInput = document.getElementById('videoPopupAddress');
+
+                // Remove existing listeners by cloning (clean way to remove all listeners)
+                const newUpdateBtn = updateBtn.cloneNode(true);
+                const newDeleteBtn = deleteBtn.cloneNode(true);
+                const newCloseBtn = closeBtn.cloneNode(true);
+                
+                updateBtn.parentNode.replaceChild(newUpdateBtn, updateBtn);
+                deleteBtn.parentNode.replaceChild(newDeleteBtn, deleteBtn);
+                closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+
+                // Add new event listeners
+                newUpdateBtn.addEventListener('click', () => {
+                    this.updateCameraFromPopup();
+                });
+
+                newDeleteBtn.addEventListener('click', () => {
+                    this.deleteCameraFromPopup();
+                });
+
+                newCloseBtn.addEventListener('click', () => {
+                    popup.classList.remove('active');
+                });
+
+                // Enter key to update
+                addressInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.updateCameraFromPopup();
+                    }
+                });
+
+                // Click outside to close
+                popup.addEventListener('click', (e) => {
+                    if (e.target === popup) {
+                        popup.classList.remove('active');
+                    }
+                });
+            }
+
+            updateCameraFromPopup() {
+                const address = document.getElementById('videoPopupAddress').value.trim();
+                const type = document.getElementById('cameraTypeSelect').value;
+                const cameraId = this.currentConfigCamera;
+                const image = document.getElementById('videoPopupImage');
+                
+                // Find and update the camera
+                const camera = this.cameras.find(cam => cam.id === cameraId);
+                if (camera) {
+                    camera.address = address;
+                    camera.type = type;
+                    
+                    this.logDetection(`Camera ${camera.name} updated: ${address} (${type})`);
+                    
+                    // Update the image
+                    if (address) {
+                        if (address.startsWith('http')) {
+                            image.src = address;
+                        } else {
+                            image.src = this.generatePlaceholderDataURL(type);
+                        }
+                    } else {
+                        image.src = this.generatePlaceholderDataURL(type);
+                    }
+                    
+                    // Update the camera feed display
+                    this.updateCameraFeedInDOM(camera);
+                    
+                    // Update the info display
+                    const info = document.getElementById('videoPopupInfo');
+                    const cameraData = this.getCameraData(cameraId);
+                    info.innerHTML = `
+                        <div><strong>Camera ID:</strong> ${cameraId}</div>
+                        <div><strong>Type:</strong> ${type.toUpperCase()}</div>
+                        <div><strong>Status:</strong> <span style="color: ${address ? '#10b981' : '#ef4444'}">${address ? 'CONFIGURED' : 'NOT CONFIGURED'}</span></div>
+                        <div><strong>Address:</strong> ${address || 'Not set'}</div>
+                        <div><strong>Resolution:</strong> 1920x1080</div>
+                        <div><strong>FPS:</strong> 30</div>
+                        <div><strong>Reading:</strong> <span style="color: #00ff41">${cameraData.reading}</span></div>
+                        <div><strong>Confidence:</strong> ${cameraData.confidence}%</div>
+                    `;
+                    
+                    alert('Camera updated successfully!');
+                }
+            }
+
+            deleteCameraFromPopup() {
+                if (!confirm('Are you sure you want to delete this camera?')) {
+                    return;
+                }
+                
+                const cameraId = this.currentConfigCamera;
+                
+                // Remove camera from array
+                this.cameras = this.cameras.filter(cam => cam.id !== cameraId);
+                
+                // Remove camera elements from DOM
+                this.removeCameraElements(cameraId);
+                
+                // Update system
+                this.updateCameraCount();
+                this.updateEmptyState();
+                
+                this.logDetection(`Camera removed: ID ${cameraId}`);
+                document.getElementById('videoFeedPopup').classList.remove('active');
+            }
+
+            removeCameraElements(cameraId) {
+                // Remove camera feed
+                const feedElement = document.getElementById(`feed${cameraId}`);
+                if (feedElement) {
+                    feedElement.remove();
+                }
+                
+                // Remove camera button
+                const buttonElement = document.querySelector(`[data-focus="${cameraId}"]`);
+                if (buttonElement) {
+                    buttonElement.remove();
+                }
+                
+                // Remove camera icon
+                const iconElement = document.getElementById(`cam${cameraId}`);
+                if (iconElement) {
+                    iconElement.remove();
+                }
+                
+                // Reset active camera if it was the deleted one
+                if (this.activeCamera === cameraId) {
+                    this.activeCamera = null;
+                }
+            }
+
+            updateCameraFeedInDOM(camera) {
+                const feedElement = document.getElementById(`feed${camera.id}`);
+                if (feedElement) {
+                    const statusElement = feedElement.querySelector('.feed-status');
+                    const addressElement = feedElement.querySelector('.info-item:last-child .reading-value');
+                    
+                    if (statusElement) {
+                        if (camera.address) {
+                            statusElement.textContent = 'CONFIGURED';
+                            statusElement.className = 'feed-status status-online';
+                        } else {
+                            statusElement.textContent = 'NOT CONFIGURED';
+                            statusElement.className = 'feed-status status-warning';
+                        }
+                    }
+                    
+                    if (addressElement) {
+                        addressElement.textContent = camera.address || 'Not set';
+                    }
+                }
+            }
+
+            getCameraData(cameraId) {
+                // Simulate camera readings based on type
+                const camera = this.cameras.find(cam => cam.id === cameraId);
+                if (!camera) return { reading: 'N/A', confidence: 0 };
+                
+                switch(camera.type) {
+                    case 'digital':
+                        return { reading: `${(45.5 + Math.random() * 10).toFixed(2)} bar`, confidence: 95 + Math.floor(Math.random() * 5) };
+                    case 'analog':
+                        return { reading: `${(2.0 + Math.random() * 3).toFixed(1)} L/min`, confidence: 90 + Math.floor(Math.random() * 10) };
+                    case 'video':
+                        return { reading: `${(25 + Math.random() * 10).toFixed(1)}°C`, confidence: 85 + Math.floor(Math.random() * 15) };
+                    default:
+                        return { reading: 'N/A', confidence: 0 };
+                }
+            }
+
+            focusCamera(cameraId) {
+                this.activeCamera = cameraId;
+                
+                // Update UI
+                document.querySelectorAll('.camera-btn').forEach(btn => btn.classList.remove('active'));
+                const targetBtn = document.querySelector(`[data-focus="${cameraId}"]`);
+                if (targetBtn) targetBtn.classList.add('active');
+                
+                document.querySelectorAll('.camera-icon').forEach(icon => icon.classList.remove('active'));
+                const targetIcon = document.getElementById(`cam${cameraId}`);
+                if (targetIcon) targetIcon.classList.add('active');
+                
+                document.querySelectorAll('.camera-feed').forEach(feed => feed.classList.remove('active'));
+                const targetFeed = document.getElementById(`feed${cameraId}`);
+                if (targetFeed) targetFeed.classList.add('active');
+                
+                this.logDetection(`Focused on Camera ${cameraId} - ${this.getCameraName(cameraId)}`);
+            }
+
+            getCameraName(cameraId) {
+                const camera = this.cameras.find(cam => cam.id === cameraId);
+                return camera ? camera.name : 'Unknown Camera';
+            }
+
+            updateCameraCount() {
+                const activeCameras = this.cameras.filter(cam => cam.address).length;
+                const totalCameras = this.cameras.length;
+                
+                document.getElementById('activeCamerasCount').textContent = `${activeCameras}/${totalCameras}`;
+                
+                // Update overall status
+                const overallStatus = document.getElementById('overallStatus');
+                if (activeCameras > 0) {
+                    overallStatus.textContent = 'OPERATIONAL';
+                    overallStatus.className = 'status-normal';
+                } else {
+                    overallStatus.textContent = 'STANDBY';
+                    overallStatus.className = 'status-warning';
+                }
+            }
+
+            addNewCamera(address, type) {
+                // Log the new camera addition
+                this.logDetection(`🔄 Adding new camera: ${address} (${type})`);
+                this.logDetection('Camera integration in progress...');
+                
+                const newCamera = {
+                    id: this.nextCameraId++,
+                    name: `CAM-${String(this.nextCameraId - 1).padStart(2, '0')}: New Camera`,
+                    address: address,
+                    type: type || 'video'
+                };
+                
+                this.cameras.push(newCamera);
+                
+                // Hide empty message if this is the first camera
+                this.updateEmptyState();
+                
+                // Add camera button to selector
+                this.addCameraButton(newCamera);
+                
+                // Add camera feed div
+                this.addCameraFeed(newCamera);
+                
+                // Add camera icon to factory layout
+                this.addCameraIcon(newCamera);
+                
+                // Update camera count
+                this.updateCameraCount();
+                this.updateCameraAddressOnServer(newCamera);
+
+                // Simulate camera setup delay
+                setTimeout(() => {
+                    this.logDetection(`✅ Camera added successfully: ${address}`);
+                    this.logDetection('New camera feed available');
+                }, 2000);
+                
+                console.log('Adding camera:', address);
+            }
+
+            addCameraButton(camera) {
+                const cameraButtonsContainer = document.getElementById('cameraButtonsContainer');
+                
+                // Clear empty message if it exists
+                const emptyMessage = cameraButtonsContainer.querySelector('div[style*="text-align: center"]');
+                if (emptyMessage) {
+                    emptyMessage.remove();
+                }
+                
+                const newButton = document.createElement('button');
+                newButton.className = 'camera-btn';
+                newButton.dataset.focus = camera.id;
+                newButton.textContent = `📷 ${camera.name}`;
+                newButton.addEventListener('click', (e) => {
+                    const focus = parseInt(e.target.dataset.focus);
+                    this.showVideoFeed(focus);
+                });
+                
+                cameraButtonsContainer.appendChild(newButton);
+            }
+
+            addCameraFeed(camera) {
+                const cameraFeeds = document.getElementById('cameraFeeds');
+                const newFeed = document.createElement('div');
+                newFeed.className = 'camera-feed';
+                newFeed.id = `feed${camera.id}`;
+                
+                const typeIcon = camera.type === 'digital' ? '📊' : camera.type === 'analog' ? '⏺️' : '📹';
+                
+                newFeed.innerHTML = `
+                    <div class="feed-header">
+                        <span>${typeIcon} ${camera.name}</span>
+                        <span class="feed-status ${camera.address ? 'status-online' : 'status-warning'}">${camera.address ? 'CONFIGURED' : 'NOT CONFIGURED'}</span>
+                    </div>
+                    <div class="feed-view">
+                        <div class="gauge-view">
+                            ${this.generateFeedContent(camera)}
+                        </div>
+                    </div>
+                    <div class="feed-info">
+                        <div class="info-item">
+                            <span>Status:</span>
+                            <span class="reading-value">${camera.address ? 'ONLINE' : 'OFFLINE'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span>Type:</span>
+                            <span class="reading-value">${camera.type.toUpperCase()}</span>
+                        </div>
+                        <div class="info-item">
+                            <span>FPS:</span>
+                            <span class="reading-value">${camera.address ? '30' : '--'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span>Address:</span>
+                            <span class="reading-value" style="font-size: 0.6rem;">${camera.address || 'Not set'}</span>
+                        </div>
+                    </div>
+                `;
+                cameraFeeds.appendChild(newFeed);
+            }
+
+            generateFeedContent(camera) {
+                 if (camera.type === 'digital') {
+                    return `
+                        <div class="digital-display no-reading" id="display-${camera.id}">--</div>
+                        <div class="confidence-indicator confidence-low" id="confidence-${camera.id}" style="display: none;">0%</div>
+                        <div style="position: absolute; top: 5px; right: 5px; font-size: 0.6rem; background: rgba(16, 185, 129, 0.8); color: white; padding: 2px 6px; border-radius: 3px;">
+                            DIGITAL
+                        </div>
+                    `;
+                } else if (camera.type === 'analog') {
+                    return `
+                        <div style="width: 80px; height: 80px; background: radial-gradient(circle, #1f2937, #111827); border: 3px solid #4b5563; border-radius: 50%; position: relative;">
+                            <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 30px; background: #ef4444; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(45deg); box-shadow: 0 0 5px #ef4444;"></div>
+                            <div style="position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; background: #ef4444; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 3px #ef4444;"></div>
+                        </div>
+                        <div class="digital-display no-reading" id="display-${camera.id}" style="position: absolute; bottom: 10px; font-size: 1.2rem;">--</div>
+                        <div class="confidence-indicator confidence-low" id="confidence-${camera.id}" style="display: none;">0%</div>
+                        <div style="position: absolute; top: 5px; right: 5px; font-size: 0.6rem; background: rgba(16, 185, 129, 0.8); color: white; padding: 2px 6px; border-radius: 3px;">
+                            ANALOG
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="video-feed">
+                            ${camera.address ? `<img src="/camera_feed/${camera.id}" alt="Video Feed" style="width: 100%; height: 100%; object-fit: cover;">` : '<div style="color: #666; text-align: center;">No Feed</div>'}
+                        </div>
+                        <div style="position: absolute; top: 5px; right: 5px; font-size: 0.6rem; background: rgba(16, 185, 129, 0.8); color: white; padding: 2px 6px; border-radius: 3px;">
+                            VIDEO
+                        </div>
+                    `;
+                }
+            }
+            
+            async fetchCameraReadings() {
+                console.log('Fetching camera readings...');
+                try {
+                    const response = await fetch('/api/all_camera_readings');
+                    const data = await response.json();
+                    console.log('Received data:', data);
+                    
+                    if (data.detector_available) {
+                        this.updateCameraDisplays(data.readings);
+                    } else {
+                        // For testing, create mock readings for each camera
+                        const mockReadings = {};
+                        this.cameras.forEach(camera => {
+                            mockReadings[camera.id.toString()] = {
+                                reading: (45.0 + Math.random() * 10).toFixed(2),
+                                confidence: 85 + Math.floor(Math.random() * 15),
+                                status: 'active'
+                            };
+                        });
+                        console.log('Using mock readings:', mockReadings);
+                        this.updateCameraDisplays(mockReadings);
+                    }
+                } catch (error) {
+                    console.error('Error fetching camera readings:', error);
+                }
+            }
+
+            updateCameraDisplays(readings) {
+                console.log('Updating camera displays with:', readings);
+                
+                this.cameras.forEach(camera => {
+                    const cameraId = camera.id.toString();
+                    const reading = readings[cameraId];
+                    
+                    console.log(`Processing camera ${camera.id} (${camera.name}):`, reading);
+                    
+                    const displayElement = document.getElementById(`display-${camera.id}`);
+                    const confidenceElement = document.getElementById(`confidence-${camera.id}`);
+                    const feedElement = document.getElementById(`feed${camera.id}`);
+                    const iconElement = document.getElementById(`cam${camera.id}`);
+                    
+                    console.log(`Elements found for camera ${camera.id}:`, {
+                        display: !!displayElement,
+                        confidence: !!confidenceElement,
+                        feed: !!feedElement,
+                        icon: !!iconElement
+                    });
+                    
+                    if (displayElement && (camera.type === 'digital' || camera.type === 'analog')) {
+                        if (reading && reading.confidence > 30) {
+                            console.log(`Updating display for camera ${camera.id} with reading:`, reading.reading);
+                            
+                            // Show reading
+                            displayElement.textContent = reading.reading.toString();
+                            displayElement.className = 'digital-display reading';
+                            
+                            // Show confidence
+                            if (confidenceElement) {
+                                confidenceElement.style.display = 'block';
+                                confidenceElement.textContent = `${reading.confidence}%`;
+                                
+                                if (reading.confidence >= 80) {
+                                    confidenceElement.className = 'confidence-indicator confidence-high';
+                                } else if (reading.confidence >= 50) {
+                                    confidenceElement.className = 'confidence-indicator confidence-medium';
+                                } else {
+                                    confidenceElement.className = 'confidence-indicator confidence-low';
+                                }
+                            }
+                            
+                            // Update feed border
+                            if (feedElement) {
+                                feedElement.classList.add('reading');
+                            }
+                            
+                            // Update icon
+                            if (iconElement) {
+                                iconElement.classList.add('reading');
+                            }
+                            
+                            this.logDetection(`${camera.name}: Reading ${reading.reading} (${reading.confidence}%)`);
+                        } else {
+                            console.log(`No valid reading for camera ${camera.id}`);
+                            // No reading
+                            displayElement.textContent = '--';
+                            displayElement.className = 'digital-display no-reading';
+                            
+                            if (confidenceElement) {
+                                confidenceElement.style.display = 'none';
+                            }
+                            
+                            if (feedElement) {
+                                feedElement.classList.remove('reading');
+                            }
+                            
+                            if (iconElement) {
+                                iconElement.classList.remove('reading');
+                            }
+                        }
+                    }
+                });
+            }
+
+            addCameraIcon(camera) {
+                const cameraIconsContainer = document.getElementById('cameraIconsContainer');
+                const newIcon = document.createElement('div');
+                newIcon.className = 'camera-icon';
+                newIcon.id = `cam${camera.id}`;
+                newIcon.dataset.camera = camera.id;
+                newIcon.title = camera.name;
+                
+                // Position cameras in different locations
+                const positions = [
+                    { left: '100px', top: '80px' },
+                    { left: '200px', top: '80px' },
+                    { left: '400px', top: '150px' },
+                    { left: '500px', top: '200px' },
+                    { left: '300px', top: '250px' },
+                    { left: '600px', top: '100px' }
+                ];
+                
+                const position = positions[(camera.id - 1) % positions.length];
+                newIcon.style.left = position.left;
+                newIcon.style.top = position.top;
+                
+                // Set icon text based on type
+                if (camera.type === 'digital') {
+                    newIcon.textContent = 'D';
+                } else if (camera.type === 'analog') {
+                    newIcon.textContent = 'A';
+                } else {
+                    newIcon.textContent = camera.id;
+                }
+                
+                newIcon.addEventListener('click', (e) => {
+                    const cameraId = parseInt(e.target.dataset.camera);
+                    this.focusCamera(cameraId);
+                });
+                
+                cameraIconsContainer.appendChild(newIcon);
+            }
+
+            setupCameraAdd() {
+                const addBtn = document.getElementById('addCameraBtn');
+                const popup = document.getElementById('addCameraPopup');
+                const cancelBtn = document.getElementById('cancelAddCamera');
+                const submitBtn = document.getElementById('addCameraSubmit');
+                const addressInput = document.getElementById('cameraAddress');
+
+                // Show popup
+                addBtn.addEventListener('click', () => {
+                    popup.classList.add('active');
+                    addressInput.focus();
+                });
+
+                // Hide popup
+                const hidePopup = () => {
+                    popup.classList.remove('active');
+                    addressInput.value = '';
+                };
+
+                // Cancel button
+                cancelBtn.addEventListener('click', hidePopup);
+
+                // Click outside to close
+                popup.addEventListener('click', (e) => {
+                    if (e.target === popup) {
+                        hidePopup();
+                    }
+                });
+
+                // Submit button
+                submitBtn.addEventListener('click', () => {
+                    const address = addressInput.value.trim();
+                    const type = document.getElementById('newCameraType').value;
+                    if (address) {
+                        this.addNewCamera(address, type);
+                        hidePopup();
+                    } else {
+                        addressInput.focus();
+                    }
+                });
+
+                // Enter key to submit
+                addressInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        submitBtn.click();
+                    }
+                });
+
+                // Escape key to cancel
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        if (popup.classList.contains('active')) hidePopup();
+                        if (document.getElementById('viewerManagementPopup').classList.contains('active')) {
+                            document.getElementById('viewerManagementPopup').classList.remove('active');
+                        }
+                        if (document.getElementById('addViewerPopup').classList.contains('active')) {
+                            document.getElementById('addViewerPopup').classList.remove('active');
+                            this.clearViewerForm();
+                        }
+                        if (document.getElementById('videoFeedPopup').classList.contains('active')) {
+                            document.getElementById('videoFeedPopup').classList.remove('active');
+                        }
+                    }
+                });
+            }
+
+            startMonitoring() {
+                // Update system status
+                setInterval(() => {
+                    this.updateSystemStatus();
+                }, 5000);
+
+                setInterval(() => {
+                    if (this.cameras.length > 0) {
+                        this.fetchCameraReadings();
+                    }
+                }, 2000);
+            }
+
+            updateSystemStatus() {
+                // Update status displays
+                if (this.cameras.length === 0) {
+                    document.getElementById('avgPressure').textContent = '-- bar';
+                    document.getElementById('overallStatus').textContent = 'STANDBY';
+                    document.getElementById('overallStatus').className = 'status-warning';
+                } else {
+                    // Simulate some readings if cameras are configured
+                    const activeCameras = this.cameras.filter(cam => cam.address).length;
+                    if (activeCameras > 0) {
+                        document.getElementById('avgPressure').textContent = (45.0 + Math.random() * 10).toFixed(1) + ' bar';
+                    }
+                }
+            }
+
+            updateSystemTime() {
+                const now = new Date();
+                const timeElement = document.getElementById('systemTime');
+                if (timeElement) {
+                    timeElement.textContent = now.toLocaleString('vi-VN', {
+                        hour: '2-digit', minute: '2-digit', second: '2-digit'
+                    });
+                }
+            }
+
+            logDetection(message) {
+                const log = document.getElementById('detectionLog');
+                if (!log) return;
+                
+                const timestamp = new Date().toLocaleTimeString('vi-VN');
+                
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span> ${message}`;
+                
+                log.insertBefore(entry, log.firstChild);
+                
+                // Limit log entries
+                while (log.children.length > 15) {
+                    log.removeChild(log.lastChild);
+                }
+            }
+
+            updateCameraAddressOnServer(camera) {
+                // Send camera configuration to Flask backend
+                fetch('/api/set_camera_address', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        camera_id: camera.id.toString(),
+                        address: camera.address,
+                        type: camera.type
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('Camera configured on server:', data.message);
+                    } else {
+                        console.error('Failed to configure camera:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error configuring camera:', error);
+                });
+            }
+
+        }
+
+        // Initialize system when page loads
+        window.addEventListener('load', () => {
+            window.factorySystem = new FactoryCameraSystem();
+        });
+    </script>
+</body>
+</html>
