@@ -6,7 +6,15 @@ import json
 import requests
 import logging
 import threading
-from gauge_detector import GaugeDetector
+
+# Import your enhanced detector
+try:
+    from enhanced_gauge_detector import EnhancedGaugeDetector
+    DETECTOR_AVAILABLE = True
+except ImportError as e:
+    print(f"Could not import enhanced detector: {e}")
+    DETECTOR_AVAILABLE = False
+    EnhancedGaugeDetector = None
 
 app = Flask(__name__)
 
@@ -14,21 +22,22 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Initialize gauge detector
+# Initialize enhanced gauge detector
 gauge_detector = None
-try:
-    gauge_detector = GaugeDetector('best.pt')  # Make sure best.pt is in the same directory
-    logger.info("Gauge detector initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize gauge detector: {e}")
-    gauge_detector = None
+if DETECTOR_AVAILABLE:
+    try:
+        gauge_detector = EnhancedGaugeDetector('best.pt')  # Just pass your digital model path
+        logger.info("Enhanced gauge detector initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize enhanced gauge detector: {e}")
+        gauge_detector = None
+else:
+    logger.error("Enhanced gauge detector not available")
 
 # Global variables for camera processing
 camera_processors = {}
 frame_count = 0
-
-camera_configs = {
-}
+camera_configs = {}
 
 def get_scada_data():
     """Get SCADA data with real gauge readings if available"""
@@ -41,22 +50,38 @@ def get_scada_data():
     for cam_id, config in camera_configs.items():
         if gauge_detector and config.get('active', False):
             reading_data = gauge_detector.get_camera_reading(cam_id)
-            if reading_data['confidence'] > 50:
+            if reading_data.get('confidence', 0) > 50:
                 readings[cam_id] = {
-                    "reading": reading_data['reading'],
-                    "confidence": reading_data['confidence'],
+                    "reading": reading_data.get('reading', 0),
+                    "confidence": reading_data.get('confidence', 0),
                     "fps": 30,
-                    "processing": 85
+                    "processing": 85,
+                    "type": config.get('type', 'video'),
+                    "unit": reading_data.get('unit', '')
                 }
                 active_cameras += 1
                 # For pressure readings, check if it's a digital or analog gauge
                 if config.get('type') in ['digital', 'analog']:
-                    total_pressure += reading_data['reading']
+                    total_pressure += reading_data.get('reading', 0)
                     pressure_count += 1
             else:
-                readings[cam_id] = {"reading": 0, "confidence": 0, "fps": 0, "processing": 0}
+                readings[cam_id] = {
+                    "reading": 0, 
+                    "confidence": 0, 
+                    "fps": 0, 
+                    "processing": 0,
+                    "type": config.get('type', 'video'),
+                    "unit": ""
+                }
         else:
-            readings[cam_id] = {"reading": 0, "confidence": 0, "fps": 0, "processing": 0}
+            readings[cam_id] = {
+                "reading": 0, 
+                "confidence": 0, 
+                "fps": 0, 
+                "processing": 0,
+                "type": config.get('type', 'video'),
+                "unit": ""
+            }
     
     avg_pressure = (total_pressure / pressure_count) if pressure_count > 0 else 0
     
@@ -69,21 +94,21 @@ def get_scada_data():
     }
 
 def process_frame_for_detection(frame, camera_id):
-    """Process frame for gauge detection in a separate thread"""
+    """Process frame for gauge detection - SIMPLIFIED ONE-LINE CALL!"""
     if gauge_detector and frame is not None:
         try:
-            # Run detection every few frames to avoid overload
             global frame_count
             frame_count += 1
             
-            # Convert camera_id to string to ensure consistency
             cam_str = str(camera_id)
             
             # Process every 5th frame for better performance
-            # You can adjust this interval based on your needs
             if frame_count % 5 == 0:
+                # THIS IS THE SIMPLE ONE-LINE CALL!
+                # For analog gauges: This runs the full pipeline (detection→keypoints→ellipse→OCR→segmentation→reading)
+                # For digital gauges: This runs YOLO detection with number recognition
                 threading.Thread(
-                    target=gauge_detector.detect_gauge_reading, 
+                    target=gauge_detector.detect_gauge_reading,  # This handles everything internally
                     args=(frame, cam_str),
                     daemon=True
                 ).start()
@@ -91,7 +116,6 @@ def process_frame_for_detection(frame, camera_id):
             
         except Exception as e:
             logger.error(f"Error processing frame for {camera_id}: {e}")
-
 
 def gen_frames_with_detection(camera_id):
     """Generate video frames with gauge detection for specific camera"""
@@ -110,52 +134,38 @@ def gen_frames_with_detection(camera_id):
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
             time.sleep(0.1)
-        return  # Add return statement here
+        return
 
     # Try to connect to camera
     address = camera_config['address']
-    cap = None
-
     try:
         if address.startswith('http'):
             cap = cv2.VideoCapture(address)
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduce buffer for IP cameras
         else:
-            # Try as device index first
-            try:
-                device_id = int(address)
-                cap = cv2.VideoCapture(device_id)
-            except ValueError:
-                # If not a number, try as string path
-                cap = cv2.VideoCapture(address)
-
-        if cap is not None:
-            # Set camera properties
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-            cap.set(cv2.CAP_PROP_FPS, 30)
-
-            # Test if camera actually works
-            test_ret, test_frame = cap.read()
-            if not test_ret or test_frame is None:
-                cap.release()
-                cap = None
-
+            cap = cv2.VideoCapture(int(address))  # For device index like 0, 1
     except Exception as e:
         logger.error(f"Error opening camera {camera_id}: {e}")
-        if cap is not None:
-            cap.release()
-        cap = None
-
-    # Fallback to default camera if configured camera fails
-    if cap is None or not cap.isOpened():
-        logger.warning(f"Camera {camera_id} failed, trying default camera...")
-        try:
-            cap = cv2.VideoCapture(0)
-            if not cap.isOpened():
-                cap = cv2.VideoCapture(1)  # Try camera 1 if 0 fails
-        except:
-            pass
+        cap = cv2.VideoCapture(0)  # Fallback to default camera
+    
+    if not cap.isOpened():
+        # If camera can't open, show error frame
+        while True:
+            error_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+            cv2.putText(error_frame, f'{camera_id}: Connection Failed', (50, 200), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            cv2.putText(error_frame, f'Cannot connect to: {address}', (50, 250), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 1)
+            ret, buffer = cv2.imencode('.jpg', error_frame)
+            frame = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+            time.sleep(0.1)
+        return
+    
+    # Set camera properties
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    cap.set(cv2.CAP_PROP_FPS, 30)
     
     frame_counter = 0
     
@@ -176,22 +186,25 @@ def gen_frames_with_detection(camera_id):
                 
             frame_counter += 1
             
-            # Process for gauge detection every few frames
+            # SIMPLE DETECTION CALL - all the complex pipeline stuff happens inside detect_gauge_reading()
             if frame_counter % 1 == 0 and gauge_detector:
                 process_frame_for_detection(frame.copy(), camera_id)
-                # logger.info("Condition is working normal")
-                # Get overlay with detections
-                frame = gauge_detector.get_detection_overlay_with_crop_visual(frame, camera_id)
+                # Get overlay with detections (shows bounding boxes for digital, result overlay for analog)
+                frame = gauge_detector.get_detection_overlay(frame, camera_id)
             
             # Add camera info overlay
-            cv2.putText(frame, f'{camera_id}: {address}', (10, 30), 
+            camera_type = camera_config.get('type', 'video').upper()
+            cv2.putText(frame, f'{camera_id}: {address} ({camera_type})', (10, 30), 
                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
             
             # Add current reading if available
             if gauge_detector:
                 reading_data = gauge_detector.get_camera_reading(camera_id)
-                if reading_data['confidence'] > 0:
-                    reading_text = f"Reading: {reading_data['reading']:.2f} ({reading_data['confidence']}%)"
+                if reading_data.get('confidence', 0) > 0:
+                    unit = reading_data.get('unit', '')
+                    reading_value = reading_data.get('reading', 0)
+                    confidence = reading_data.get('confidence', 0)
+                    reading_text = f"Reading: {reading_value:.2f}{unit} ({confidence}%)"
                     cv2.putText(frame, reading_text, (10, 60), 
                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
             
@@ -224,6 +237,11 @@ def set_camera_address():
         address = data.get('address', '').strip()
         camera_type = data.get('type', 'video')  # Default to video
         
+        # Validate camera type
+        valid_types = ['digital', 'analog', 'video']
+        if camera_type not in valid_types:
+            return jsonify({'success': False, 'message': f'Invalid camera type. Must be one of: {valid_types}'})
+        
         # Create camera config if it doesn't exist
         if camera_id not in camera_configs:
             camera_configs[camera_id] = {'address': '', 'active': False, 'type': 'video'}
@@ -235,10 +253,13 @@ def set_camera_address():
         # Clear previous detection data for this camera
         if gauge_detector:
             gauge_detector.clear_camera_data(camera_id)
+            # Set the camera type in the detector
+            gauge_detector.set_camera_type(camera_id, camera_type)
         
         logger.info(f"Camera {camera_id} configured: {address} ({camera_type})")
         return jsonify({'success': True, 'message': f'Camera {camera_id} configured as {camera_type}'})
     except Exception as e:
+        logger.error(f"Error setting camera address: {e}")
         return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/api/delete_camera', methods=['POST'])
@@ -261,99 +282,152 @@ def delete_camera():
         else:
             return jsonify({'success': False, 'message': 'Invalid camera ID'})
     except Exception as e:
+        logger.error(f"Error deleting camera: {e}")
         return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/api/camera_config/<camera_id>')
 def get_camera_config(camera_id):
     """Get camera configuration"""
-    if camera_id in camera_configs:
-        return jsonify(camera_configs[camera_id])
-    else:
-        return jsonify({'address': '', 'active': False})
+    try:
+        if camera_id in camera_configs:
+            return jsonify(camera_configs[camera_id])
+        else:
+            return jsonify({'address': '', 'active': False, 'type': 'video'})
+    except Exception as e:
+        logger.error(f"Error getting camera config: {e}")
+        return jsonify({'error': str(e)})
 
 @app.route('/')
 def index():
     """Serve the main page"""
-    return render_template('index.html', data=get_scada_data())
+    try:
+        return render_template('index.html', data=get_scada_data())
+    except Exception as e:
+        logger.error(f"Error serving index page: {e}")
+        return f"Error loading page: {e}", 500
 
 @app.route('/external_video_feed')
 def external_video_feed():
-    """Video feed endpoint"""
-    return Response(gen_frames_with_detection(), 
+    """Video feed endpoint for external access"""
+    # Default to camera 1 if no specific camera requested
+    return Response(gen_frames_with_detection('1'), 
                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/api/readings')
 def get_readings():
     """API endpoint to get current readings"""
-    return jsonify(get_scada_data())
+    try:
+        return jsonify(get_scada_data())
+    except Exception as e:
+        logger.error(f"Error getting readings: {e}")
+        return jsonify({'error': str(e)})
 
 @app.route('/api/gauge_status')
 def gauge_status():
     """Get detailed gauge detection status"""
-    if gauge_detector:
-        readings = gauge_detector.get_all_readings()
-        return jsonify({
-            'detector_available': True,
-            'readings': readings,
-            'timestamp': time.time()
-        })
-    else:
+    try:
+        if gauge_detector:
+            readings = gauge_detector.get_all_readings()
+            return jsonify({
+                'detector_available': True,
+                'readings': readings,
+                'timestamp': time.time(),
+                'analog_support': getattr(gauge_detector, 'analog_available', False),
+                'digital_support': gauge_detector.digital_model is not None
+            })
+        else:
+            return jsonify({
+                'detector_available': False,
+                'error': 'Gauge detector not initialized',
+                'timestamp': time.time(),
+                'analog_support': False,
+                'digital_support': False
+            })
+    except Exception as e:
+        logger.error(f"Error getting gauge status: {e}")
         return jsonify({
             'detector_available': False,
-            'error': 'Gauge detector not initialized',
-            'timestamp': time.time()
-        })
-@app.route('/api/camera_reading/<camera_id>')
-def get_camera_reading(camera_id):
-    """Get real-time reading for specific camera"""
-    if gauge_detector:
-        reading_data = gauge_detector.get_camera_reading(camera_id)
-        return jsonify({
-            'camera_id': camera_id,
-            'reading': reading_data.get('reading', 0),
-            'confidence': reading_data.get('confidence', 0),
-            'last_update': reading_data.get('last_update', 0),
+            'error': str(e),
             'timestamp': time.time(),
-            'status': 'active' if reading_data.get('confidence', 0) > 30 else 'inactive'
-        })
-    else:
-        return jsonify({
-            'camera_id': camera_id,
-            'reading': 0,
-            'confidence': 0,
-            'last_update': 0,
-            'timestamp': time.time(),
-            'status': 'detector_unavailable'
+            'analog_support': False,
+            'digital_support': False
         })
 
-@app.route('/api/all_camera_readings')
-def get_all_camera_readings():
-    """Get real-time readings for all cameras"""
-    if gauge_detector:
-        all_readings = gauge_detector.get_all_readings()
-        result = {}
-        for cam_id, reading_data in all_readings.items():
-            result[cam_id] = {
-                'camera_id': cam_id,
-                'reading': reading_data.get('reading', 0),
-                'confidence': reading_data.get('confidence', 0),
-                'last_update': reading_data.get('last_update', 0),
-                'status': 'active' if reading_data.get('confidence', 0) > 30 else 'inactive'
-            }
+@app.route('/api/detector_capabilities')
+def detector_capabilities():
+    """Get detector capabilities"""
+    try:
+        if gauge_detector:
+            analog_available = getattr(gauge_detector, 'analog_available', False)
+            digital_available = gauge_detector.digital_model is not None
+            
+            supported_types = ['video']  # Always support video
+            if digital_available:
+                supported_types.append('digital')
+            if analog_available:
+                supported_types.append('analog')
+                
+            return jsonify({
+                'digital_gauges': digital_available,
+                'analog_gauges': analog_available,
+                'supported_types': supported_types,
+                'detector_status': 'Available'
+            })
+        else:
+            return jsonify({
+                'digital_gauges': False,
+                'analog_gauges': False,
+                'supported_types': ['video'],
+                'detector_status': 'Not Available'
+            })
+    except Exception as e:
+        logger.error(f"Error getting detector capabilities: {e}")
+        return jsonify({
+            'digital_gauges': False,
+            'analog_gauges': False,
+            'supported_types': [],
+            'detector_status': f'Error: {str(e)}'
+        })
+
+@app.route('/api/system_info')
+def system_info():
+    """Get system information"""
+    try:
+        info = {
+            'timestamp': time.time(),
+            'total_cameras': len(camera_configs),
+            'active_cameras': len([c for c in camera_configs.values() if c.get('active', False)]),
+            'detector_available': gauge_detector is not None,
+            'version': '2.0.0'
+        }
         
-        return jsonify({
-            'readings': result,
-            'timestamp': time.time(),
-            'detector_available': True
-        })
-    else:
-        return jsonify({
-            'readings': {},
-            'timestamp': time.time(),
-            'detector_available': False
-        })
-    
+        if gauge_detector:
+            info.update({
+                'digital_support': gauge_detector.digital_model is not None,
+                'analog_support': getattr(gauge_detector, 'analog_available', False)
+            })
+        
+        return jsonify(info)
+    except Exception as e:
+        logger.error(f"Error getting system info: {e}")
+        return jsonify({'error': str(e)})
+
 if __name__ == "__main__":
-    print("Starting H2 Factory Camera Monitoring System...")
-    print("Gauge detector status:", "Available" if gauge_detector else "Not available")
+    print("🚀 Starting H2 Factory Camera Monitoring System...")
+    print("=" * 50)
+    print("📊 Gauge detector status:")
+    if gauge_detector:
+        digital_status = "✅ Available" if gauge_detector.digital_model else "❌ Not available"
+        analog_status = "✅ Available" if getattr(gauge_detector, 'analog_available', False) else "❌ Not available"
+        print(f"  - Digital gauges: {digital_status}")
+        print(f"  - Analog gauges: {analog_status}")
+        print("  - System ready for camera configuration")
+    else:
+        print("  - ❌ Detector not initialized")
+        print("  - System running in video-only mode")
+    
+    print("=" * 50)
+    print("🌐 Starting Flask server on http://0.0.0.0:5000")
+    print("📱 Access the web interface to add cameras")
+    
     app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
