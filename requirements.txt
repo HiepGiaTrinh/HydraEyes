@@ -4,3 +4,6 @@ opencv-python
 pillow
 requests
 ultralytics
+gunicorn
+python-dotenv
+waitress

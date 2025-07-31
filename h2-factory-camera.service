@@ -1,0 +1,18 @@
+[Unit]
+Description=H2 Factory Camera Monitoring System
+After=network.target
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/path/to/your/HydraEyes
+Environment=FLASK_ENV=production
+Environment=SECRET_KEY=your-production-secret-key
+ExecStart=/usr/local/bin/gunicorn --config gunicorn.conf.py wsgi:app
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
