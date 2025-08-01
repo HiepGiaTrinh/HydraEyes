@@ -482,4 +482,5 @@ if __name__ == "__main__":
         print(f"Analog detector pipeline status: {'Available' if system_info['pipeline_available'] else 'Not available'}")
         print(f"Analog detector models status: {'Available' if system_info['models_available'] else 'Missing - using simulated values'}")
     
-    app.run(debug=True, host='0.0.0.0', port=8000, threaded=True)
+    # app.run(debug=True, host='0.0.0.0', port=8000, threaded=True)
+    app.run()
