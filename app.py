@@ -484,5 +484,5 @@ if __name__ == "__main__":
         print(f"Analog detector models status: {'Available' if system_info['models_available'] else 'Missing - using simulated values'}")
     
     # app.run(debug=True, host='0.0.0.0', port=8000, threaded=True)
-    port = int(os.getenv("PORT", 8000))
-    app.run(host="0.0.0.0", port=port)
+    # port = int(os.getenv("PORT", 8000))
+    app.run(host="0.0.0.0")
