@@ -42,7 +42,7 @@ class GaugeDetector:
         # Convert back to BGR
         return cv2.cvtColor(blurred, cv2.COLOR_GRAY2BGR)
 
-    def crop_center(self, frame, crop_width=600, crop_height=300):
+    def crop_center(self, frame, crop_width=350, crop_height=180):
         """Crop center of frame for better detection"""
         if frame is None:
             return None, None
@@ -320,16 +320,18 @@ class GaugeDetector:
             timestamp = datetime.datetime.now().strftime("%H:%M:%S")
             f.write(f"[{timestamp}] detect_gauge_reading called for camera {camera_id}\n")
 
-
         if not self.model or frame is None:
             return
 
-        try:
-            # Initialize lock for camera if not exists
-            if camera_id not in self.camera_locks:
-                self.camera_locks[camera_id] = threading.Lock()
+        # Initialize lock for camera if not exists
+        if camera_id not in self.camera_locks:
+            self.camera_locks[camera_id] = threading.Lock()
 
-            with self.camera_locks[camera_id]:
+        lock_acquired = False  # Initialize BEFORE try block
+        try:
+            if self.camera_locks[camera_id].acquire(timeout=0.1):
+                lock_acquired = True
+
                 # Preprocess frame
                 processed_frame = self.preprocess_frame(frame)
                 if processed_frame is None:
@@ -380,6 +382,10 @@ class GaugeDetector:
 
         except Exception as e:
             print(f"Error detecting gauge reading for {camera_id}: {e}")
+        finally:
+            # CRITICAL: Always release the lock if it was acquired
+            if lock_acquired:
+                self.camera_locks[camera_id].release()
 
     def get_camera_reading(self, camera_id):
         """Get reading for specific camera"""
@@ -392,6 +398,8 @@ class GaugeDetector:
         return {cam_id: self.get_camera_reading(cam_id) for cam_id in self.camera_readings.keys()}
 
     def get_detection_overlay(self, frame, camera_id):
+        if camera_id not in self.last_detections:
+            return frame
         with open('debug_log.txt', 'a') as f:
             import datetime
             timestamp = datetime.datetime.now().strftime("%H:%M:%S")
@@ -413,13 +421,13 @@ class GaugeDetector:
         return frame
 
     def get_detection_overlay_with_crop_visual(self, frame, camera_id):
-        """Get frame with just crop rectangle and reading - no individual detection boxes"""
+        """Get frame with just crop rectangle and reading - STABLE display"""
         if frame is None:
             return frame
 
         overlay_frame = frame.copy()
 
-        # Show the detection area only
+        # ALWAYS show the detection area (prevents flickering)
         h, w = frame.shape[:2]
         crop_width, crop_height = 600, 300
         center_x, center_y = w // 2, h // 2
@@ -434,24 +442,30 @@ class GaugeDetector:
         if y2 - y1 < crop_height:
             y1 = max(0, y2 - crop_height)
 
-        # Draw crop rectangle only
+        # ALWAYS draw stable crop rectangle
         cv2.rectangle(overlay_frame, (x1, y1), (x2, y2), (255, 0, 0), 3)
         cv2.putText(overlay_frame, "Detection Area", (x1, y1 - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
 
-        # Show the final reading if available
+        # ALWAYS show reading text (use last known value to prevent flickering)
+        reading_text = "Reading: --"  # Default text
         if camera_id in self.last_detections:
             det_data = self.last_detections[camera_id]
             number = det_data['number']
-            cv2.putText(overlay_frame, f"Reading: {number}", (10, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
+            reading_text = f"Reading: {number}"
+
+        # Create consistent background for text
+        cv2.rectangle(overlay_frame, (5, 5), (250, 40), (0, 0, 0), -1)
+        cv2.putText(overlay_frame, reading_text, (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
         return overlay_frame
-    def clear_camera_data(self, camera_id):
-        """Clear data for specific camera"""
-        if camera_id in self.camera_readings:
-            del self.camera_readings[camera_id]
-        if camera_id in self.camera_locks:
-            del self.camera_locks[camera_id]
-        if camera_id in self.last_detections:
-            del self.last_detections[camera_id]
+
+        def clear_camera_data(self, camera_id):
+            """Clear data for specific camera"""
+            if camera_id in self.camera_readings:
+                del self.camera_readings[camera_id]
+            if camera_id in self.camera_locks:
+                del self.camera_locks[camera_id]
+            if camera_id in self.last_detections:
+                del self.last_detections[camera_id]

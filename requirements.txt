@@ -7,3 +7,9 @@ ultralytics
 gunicorn
 python-dotenv
 waitress
+torch
+torchvision
+scikit-learn
+mmcv
+mmdet
+mmocr

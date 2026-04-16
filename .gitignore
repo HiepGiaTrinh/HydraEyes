@@ -1,0 +1,27 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Runtime outputs
+gauge_readings.json
+gauge_reader_web/results/
+gauge_reader_web/tmp/
+Testing_analog/results/
+
+# Test output images (auto-generated)
+gauge_reader_web/calibrated_gauge_test_*.png
+gauge_reader_web/gauge_test_simple.png
+
+# Temp/debug images
+img_1.png
+gauge_reader_web/img.png
+gauge_reader_web/img_1.png
+
+# Large media files
+*.mp4
+*.mov
+*.avi
+
+# IDE
+.idea/
