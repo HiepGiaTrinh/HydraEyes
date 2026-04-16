@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import glob
 import numpy as np
@@ -7,8 +8,13 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import logging
 import argparse
 
+# Add project root and gauge_reader_web to path
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _project_root)
+sys.path.insert(0, os.path.join(_project_root, 'gauge_reader_web'))
+
 # Import pipeline function từ gauge_reader_web
-from gauge_reader_web.pipeline import process_image
+from pipeline import process_image
 
 
 class AnalogGaugeTester:

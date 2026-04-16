@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import glob
 import numpy as np
@@ -6,15 +7,20 @@ import matplotlib.pyplot as plt
 import cv2
 from PIL import Image
 
+# Add project root and gauge_reader_web to path
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _project_root)
+sys.path.insert(0, os.path.join(_project_root, 'gauge_reader_web'))
+
 # Import các components cần thiết từ pipeline
-from gauge_reader_web.gauge_detection.detection_inference import detection_gauge_face
-from gauge_reader_web.key_point_detection.key_point_inference import KeyPointInference, detect_key_points
-from gauge_reader_web.geometry.ellipse import (
+from gauge_detection.detection_inference import detection_gauge_face
+from key_point_detection.key_point_inference import KeyPointInference, detect_key_points
+from geometry.ellipse import (
     fit_ellipse, cart_to_pol, get_point_from_angle, get_polar_angle,
     get_theta_middle, get_line_ellipse_point
 )
-from gauge_reader_web.segmentation.segmenation_inference import segment_gauge_needle, get_fitted_line, get_start_end_line, cut_off_line
-from gauge_reader_web.angle_reading_fit.angle_converter import AngleConverter
+from segmentation.segmenation_inference import segment_gauge_needle, get_fitted_line, get_start_end_line, cut_off_line
+from angle_reading_fit.angle_converter import AngleConverter
 
 
 class CalibratedGaugeTester:

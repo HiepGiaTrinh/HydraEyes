@@ -7,6 +7,7 @@ Target: ≤2% relative reading error
 """
 
 import os
+import sys
 import time
 import glob
 import numpy as np
@@ -14,6 +15,9 @@ import matplotlib.pyplot as plt
 import cv2
 import torch
 from PIL import Image
+
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 # Import the FullGaugeProcessor from tools/still_processor.py
 from tools.still_processor import FullGaugeProcessor

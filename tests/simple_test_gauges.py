@@ -1,11 +1,17 @@
 import os
+import sys
 import time
 import glob
 import numpy as np
 import matplotlib.pyplot as plt
 
+# Add project root and gauge_reader_web to path
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _project_root)
+sys.path.insert(0, os.path.join(_project_root, 'gauge_reader_web'))
+
 # Import pipeline function
-from gauge_reader_web.pipeline import process_image
+from pipeline import process_image
 
 
 def extract_true_value(filename):
