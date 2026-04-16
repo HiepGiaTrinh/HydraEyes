@@ -7,14 +7,14 @@ import cv2
 from PIL import Image
 
 # Import các components cần thiết từ pipeline
-from gauge_detection.detection_inference import detection_gauge_face
-from key_point_detection.key_point_inference import KeyPointInference, detect_key_points
-from geometry.ellipse import (
+from gauge_reader_web.gauge_detection.detection_inference import detection_gauge_face
+from gauge_reader_web.key_point_detection.key_point_inference import KeyPointInference, detect_key_points
+from gauge_reader_web.geometry.ellipse import (
     fit_ellipse, cart_to_pol, get_point_from_angle, get_polar_angle,
     get_theta_middle, get_line_ellipse_point
 )
-from segmentation.segmenation_inference import segment_gauge_needle, get_fitted_line, get_start_end_line, cut_off_line
-from angle_reading_fit.angle_converter import AngleConverter
+from gauge_reader_web.segmentation.segmenation_inference import segment_gauge_needle, get_fitted_line, get_start_end_line, cut_off_line
+from gauge_reader_web.angle_reading_fit.angle_converter import AngleConverter
 
 
 class CalibratedGaugeTester:
@@ -374,10 +374,10 @@ class CalibratedGaugeTester:
 
 def main():
     # Cấu hình
-    gauges_dir = "gauges"
-    detection_model = "models/gauge_detection_model.pt"
-    keypoint_model = "models/keypoint_model.pt"
-    segmentation_model = "models/needle_segmentation_model.pt"
+    gauges_dir = "data/gauges"
+    detection_model = "gauge_reader_web/models/gauge_detection_model.pt"
+    keypoint_model = "gauge_reader_web/models/keypoint_model.pt"
+    segmentation_model = "gauge_reader_web/models/needle_segmentation_model.pt"
 
     # Thông số calibration
     gauge_min = 0.0  # Min value

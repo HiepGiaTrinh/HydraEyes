@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Import pipeline function
-from pipeline import process_image
+from gauge_reader_web.pipeline import process_image
 
 
 def extract_true_value(filename):
@@ -36,10 +36,10 @@ def test_gauges():
     """Test đơn giản cho folder gauges"""
 
     # Đường dẫn cố định
-    gauges_dir = "gauges"
-    detection_model = "models/gauge_detection_model.pt"
-    keypoint_model = "models/keypoint_model.pt"
-    segmentation_model = "models/needle_segmentation_model.pt"
+    gauges_dir = "data/gauges"
+    detection_model = "gauge_reader_web/models/gauge_detection_model.pt"
+    keypoint_model = "gauge_reader_web/models/keypoint_model.pt"
+    segmentation_model = "gauge_reader_web/models/needle_segmentation_model.pt"
 
     # Kiểm tra files
     for path, name in [(gauges_dir, "gauges folder"),

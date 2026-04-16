@@ -15,10 +15,8 @@ import cv2
 import torch
 from PIL import Image
 
-# Import the FullGaugeProcessor from still2.py
-import sys
-sys.path.append('.')
-from still2 import FullGaugeProcessor
+# Import the FullGaugeProcessor from tools/still_processor.py
+from tools.still_processor import FullGaugeProcessor
 
 class Still2SystemTester:
     """
@@ -26,7 +24,7 @@ class Still2SystemTester:
     Simulates camera-based gauge reading with static images
     """
 
-    def __init__(self, gauges_dir="gauges",
+    def __init__(self, gauges_dir="data/gauges",
                  detection_model="gauge_reader_web/models/gauge_detection_model.pt",
                  keypoint_model="gauge_reader_web/models/keypoint_model.pt",
                  segmentation_model="gauge_reader_web/models/needle_segmentation_model.pt"):

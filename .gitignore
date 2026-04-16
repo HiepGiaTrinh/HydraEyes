@@ -7,14 +7,15 @@ __pycache__/
 gauge_readings.json
 gauge_reader_web/results/
 gauge_reader_web/tmp/
-Testing_analog/results/
+tests/analog/results/
+tests/results/
+logs/
 
 # Test output images (auto-generated)
-gauge_reader_web/calibrated_gauge_test_*.png
-gauge_reader_web/gauge_test_simple.png
+calibrated_gauge_test_*.png
+gauge_test_simple.png
 
 # Temp/debug images
-img_1.png
 gauge_reader_web/img.png
 gauge_reader_web/img_1.png
 

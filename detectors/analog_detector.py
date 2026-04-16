@@ -12,7 +12,8 @@ from PIL import Image
 
 # Add the gauge_reader_web directory to Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
-gauge_reader_path = os.path.join(current_dir, 'gauge_reader_web')
+project_root = os.path.dirname(current_dir)
+gauge_reader_path = os.path.join(project_root, 'gauge_reader_web')
 sys.path.insert(0, gauge_reader_path)
 
 # Now import the pipeline function from the subfolder

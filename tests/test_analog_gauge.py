@@ -7,8 +7,8 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import logging
 import argparse
 
-# Import pipeline function từ pipeline.py
-from pipeline import process_image
+# Import pipeline function từ gauge_reader_web
+from gauge_reader_web.pipeline import process_image
 
 
 class AnalogGaugeTester:

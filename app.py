@@ -6,8 +6,8 @@ import json
 import requests
 import logging
 import threading
-from digital_detector import GaugeDetector  # Your existing digital detector
-from analog_detector import AnalogGaugeDetector  # New analog detector
+from detectors.digital_detector import GaugeDetector
+from detectors.analog_detector import AnalogGaugeDetector
 import os
 
 app = Flask(__name__)
@@ -22,7 +22,7 @@ analog_detector = None
 
 # Initialize digital detector
 try:
-    digital_detector = GaugeDetector('best.pt')  # Your existing digital model
+    digital_detector = GaugeDetector('models/best.pt')
     logger.info("Digital gauge detector initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize digital gauge detector: {e}")

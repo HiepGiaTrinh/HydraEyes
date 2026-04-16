@@ -11,7 +11,7 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY") or "dev-secret-key-change-in-production"
 
     # Model paths
-    DIGITAL_MODEL_PATH = os.environ.get("DIGITAL_MODEL_PATH", "best.pt")
+    DIGITAL_MODEL_PATH = os.environ.get("DIGITAL_MODEL_PATH", "models/best.pt")
     ANALOG_MODEL_PATH = os.environ.get("ANALOG_MODEL_PATH", "gauge_reader_web/models")
 
     # Server settings
